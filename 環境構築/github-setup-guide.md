@@ -1,23 +1,25 @@
 # GitHub & Claude Code 環境構築ガイド
 
 新しいPCで同じ開発環境をすぐに再現するための手順書です。
+**会社PCでも個人PCでも同じ手順で使えます。**
 
 ---
 
 ## 目次
 
 1. [必要なツールのインストール](#1-必要なツールのインストール)
-2. [Gitの初期設定](#2-gitの初期設定)
-3. [GitHubとの連携](#3-githubとの連携)
-4. [既存リポジトリの取得](#4-既存リポジトリの取得)
-5. [Claude Codeのセットアップ](#5-claude-codeのセットアップ)
-6. [自動コミットの設定](#6-自動コミットの設定)
-7. [日常の作業フロー](#7-日常の作業フロー)
-8. [バージョン管理チートシート](#8-バージョン管理チートシート)
+2. [セットアップスクリプトの実行](#2-セットアップスクリプトの実行)
+3. [Claude Codeへのログイン](#3-claude-codeへのログイン)
+4. [複数アカウントの使い分け](#4-複数アカウントの使い分け)
+5. [日常の作業フロー](#5-日常の作業フロー)
+6. [バージョン管理チートシート](#6-バージョン管理チートシート)
+7. [トラブルシューティング](#7-トラブルシューティング)
 
 ---
 
 ## 1. 必要なツールのインストール
+
+以下の3つをインストールしてください。
 
 | ツール | ダウンロード先 | 用途 |
 |---|---|---|
@@ -25,7 +27,7 @@
 | VS Code | https://code.visualstudio.com | コードエディタ |
 | Claude Code | https://claude.ai/code | AIアシスタントCLI |
 
-インストール確認：
+インストール後、確認コマンド：
 ```bash
 git --version
 code --version
@@ -34,138 +36,120 @@ claude --version
 
 ---
 
-## 2. Gitの初期設定
+## 2. セットアップスクリプトの実行
 
-**インストール後に必ず一度だけ実行する。**
-
-```bash
-git config --global user.name "あなたの名前"
-git config --global user.email "your@email.com"
-```
-
-設定確認：
-```bash
-git config --list
-```
-
----
-
-## 3. GitHubとの連携
-
-### GitHubアカウント
-- アカウント名：shoteacherj-web
-- URL：https://github.com/shoteacherj-web
-
-### 認証（Personal Access Token）
-1. GitHub → Settings → Developer settings → Personal access tokens
-2. 「Generate new token」をクリック
-3. 権限：`repo` にチェック
-4. 生成されたトークンをパスワードとして使用
-
----
-
-## 4. 既存リポジトリの取得
-
-新しいPCでは `setup.sh` を実行するだけで全リポジトリが揃います。
+このフォルダにある `setup.sh` を実行するだけで環境が整います。
 
 ```bash
 bash setup.sh
 ```
 
-または手動で個別にclone：
+実行すると以下を順番に質問されます：
 
-```bash
-# 作業フォルダを作成
-mkdir -p ~/AI開発
-cd ~/AI開発
-
-# 各リポジトリをclone
-git clone https://github.com/shoteacherj-web/ai-secretary.git
-git clone https://github.com/shoteacherj-web/joba-agent.git
-git clone https://github.com/shoteacherj-web/Figma-Design.git
-git clone https://github.com/shoteacherj-web/git-practice.git
-git clone https://github.com/shoteacherj-web/google-ai-studio.git
-git clone https://github.com/shoteacherj-web/wp-theme-template.git
+```
+名前：              ← GitHubに登録した名前
+メールアドレス：    ← GitHubに登録したメールアドレス
+GitHubアカウント名：← 使用するアカウント名（会社 or 個人）
+作業フォルダ：      ← リポジトリを保存する場所（Enterでデフォルト）
+リポジトリ名：      ← cloneしたいリポジトリ名を1つずつ入力
 ```
 
 ---
 
-## 5. Claude Codeのセットアップ
+## 3. Claude Codeへのログイン
 
 ```bash
-# Claude Codeにログイン
 claude auth login
 ```
 
-設定ファイル（`~/.claude/settings.json`）を以下の内容で作成：
-
-```json
-{
-  "language": "ja",
-  "autoUpdatesChannel": "latest",
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/auto_commit.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+ブラウザが開くのでログインしてください。
 
 ---
 
-## 6. 自動コミットの設定
+## 4. 複数アカウントの使い分け
 
-`auto_commit.sh` を `~/.claude/scripts/` に配置します。
+**会社PCで個人アカウントと会社アカウントを使い分ける方法です。**
+
+### 基本の考え方
+
+```
+グローバル設定  → 会社アカウント（デフォルト）
+リポジトリ個別  → 個人アカウント（必要な時だけ切り替え）
+```
+
+### 会社アカウントをデフォルトに設定
 
 ```bash
-mkdir -p ~/.claude/scripts
-cp 環境構築/auto_commit.sh ~/.claude/scripts/auto_commit.sh
+git config --global user.name "会社の名前"
+git config --global user.email "会社のメール@company.com"
 ```
 
-これで **Claude Codeで作業が終わるたびに自動でコミット**されます。
+### 個人リポジトリだけ個人アカウントに切り替える
 
-### 自動コミットの仕組み
-
+```bash
+# 個人のリポジトリフォルダに移動してから実行
+cd ~/AI開発/git-practice
+git config user.name "個人の名前"
+git config user.email "個人のメール@gmail.com"
 ```
-Claude Codeで作業
-    ↓
-返答が終わるたびに自動実行
-    ↓
-AI開発フォルダ内の全リポジトリをチェック
-    ↓
-変更があれば自動でコミット（例：auto: [JOBA] main.py を更新）
+
+※ この設定はそのフォルダだけに適用されます。
+
+### 個人リポジトリをcloneする場合
+
+```bash
+# アカウント名を明示してclone
+git clone https://shoteacherj-web@github.com/shoteacherj-web/リポジトリ名.git
+```
+
+### 現在の設定を確認する
+
+```bash
+# グローバル設定の確認
+git config --global user.email
+
+# 現在のリポジトリの設定確認
+git config user.email
 ```
 
 ---
 
-## 7. 日常の作業フロー
+## 5. 日常の作業フロー
 
 ### 毎朝（作業開始前）
+
 ```bash
 git pull origin main   # 最新の状態を取得
 ```
 
 ### 作業中
-- ファイルを編集する
-- Claude Codeが自動でコミット（手動でも可）
+
+- ファイルを編集するだけでOK
+- Claude Codeが作業終了時に**自動でコミット**してくれます
 
 ### 作業終了時
+
 ```bash
 git push origin main   # GitHubに送信
 ```
 
-または Claude Codeに「今日の変更をpushしておいて」と伝えるだけでOK。
+または Claude Codeに一言：
+```
+「今日の変更をpushしておいて」
+```
+
+### Claude Codeへの便利な指示例
+
+```
+「今日の変更をコミットしてpushしておいて」
+「〇〇ブランチを作って変更を上げておいて」
+「変更を全部コミットしておいて」
+「v1の状態に戻して」
+```
 
 ---
 
-## 8. バージョン管理チートシート
+## 6. バージョン管理チートシート
 
 ```bash
 # 状態確認（一番よく使う）
@@ -191,35 +175,65 @@ git checkout [コミットID] -- ファイル名
 
 # 新しいブランチを作る
 git checkout -b ブランチ名
+
+# ブランチを切り替える
+git checkout ブランチ名
+
+# ブランチをmainに合体させる
+git merge ブランチ名
 ```
 
-### よく使うClaude Codeへの指示
+### バージョン管理のポイント
 
 ```
-「今日の変更をコミットしてpushしておいて」
-「〇〇ブランチを作って変更を上げておいて」
-「変更を全部コミットしておいて」
-「v1の状態に戻して」
+❌ バックアップファイルを作る必要はない
+   index_backup.html
+   index_最終版.html   ← これは不要！
+
+✅ ファイルは1つ、履歴はGitが管理
+   index.html          ← これだけでOK
 ```
 
 ---
 
-## トラブルシューティング
+## 7. トラブルシューティング
 
-### pushできない場合
+### pushできない（認証エラー）
+
 ```bash
-# 認証エラーの場合はトークンを再設定
-git remote set-url origin https://[トークン]@github.com/shoteacherj-web/[リポジトリ名].git
+# Personal Access Tokenを使って認証する
+# GitHub → Settings → Developer settings → Personal access tokens
+# 生成したトークンをパスワードとして使用
+
+git remote set-url origin https://[アカウント名]@github.com/[アカウント名]/[リポジトリ名].git
 ```
 
-### 最新が取得できない場合
+### 最新が取得できない
+
 ```bash
 git fetch origin
 git pull origin main
 ```
 
-### 間違えてコミットした場合
+### 間違えてコミットした
+
 ```bash
 # 直前のコミットを取り消す（ファイルは残る）
 git revert HEAD
 ```
+
+### どのアカウントで操作しているか確認したい
+
+```bash
+git config user.email
+```
+
+---
+
+## 付属ファイル
+
+| ファイル名 | 内容 |
+|---|---|
+| `setup.sh` | 新PC用一括セットアップスクリプト |
+| `auto_commit.sh` | 自動コミットスクリプト |
+| `github-setup-guide.md` | この手順書 |

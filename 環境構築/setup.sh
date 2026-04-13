@@ -24,79 +24,103 @@ git config --global user.email "$GIT_EMAIL"
 echo "✓ Git設定完了"
 
 # ------------------------------
-# 2. 作業フォルダの作成
+# 2. GitHubアカウントの確認
 # ------------------------------
 echo ""
-echo "【Step 2】作業フォルダの作成"
+echo "【Step 2】GitHubアカウントの設定"
+echo "使用するGitHubアカウント名を入力してください。"
+echo "（例：会社アカウントなら会社のユーザー名、個人なら shoteacherj-web）"
+echo ""
 
-# Windowsの場合はドキュメントフォルダに作成
+read -p "GitHubアカウント名：" GITHUB_USER
+echo "✓ GitHubアカウント：$GITHUB_USER"
+
+# ------------------------------
+# 3. 作業フォルダの作成
+# ------------------------------
+echo ""
+echo "【Step 3】作業フォルダの作成"
+echo "リポジトリを保存するフォルダのパスを入力してください。"
+echo "（そのままEnterを押すとデフォルトのパスになります）"
+
+# OSに応じてデフォルトパスを設定
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-  BASE_DIR="$USERPROFILE/OneDrive/ドキュメント/AI開発"
+  DEFAULT_DIR="$USERPROFILE/Documents/AI開発"
 else
-  BASE_DIR="$HOME/AI開発"
+  DEFAULT_DIR="$HOME/AI開発"
 fi
+
+read -p "作業フォルダ [$DEFAULT_DIR]：" BASE_DIR
+BASE_DIR="${BASE_DIR:-$DEFAULT_DIR}"
 
 mkdir -p "$BASE_DIR"
 echo "✓ 作業フォルダ作成：$BASE_DIR"
 
 # ------------------------------
-# 3. リポジトリのclone
+# 4. リポジトリのclone
 # ------------------------------
 echo ""
-echo "【Step 3】GitHubからリポジトリを取得"
+echo "【Step 4】GitHubからリポジトリを取得"
+echo "cloneするリポジトリ名を入力してください（複数可）。"
+echo "1行に1つ入力し、終わったら空のままEnterを押してください。"
+echo "（個人リポジトリを会社PCに入れる場合はそのまま入力してOKです）"
+echo ""
 
-GITHUB_USER="shoteacherj-web"
-REPOS=(
-  "ai-secretary"
-  "joba-agent"
-  "Figma-Design"
-  "git-practice"
-  "google-ai-studio"
-  "wp-theme-template"
-)
-
-cd "$BASE_DIR"
-
-for REPO in "${REPOS[@]}"; do
-  if [ -d "$REPO" ]; then
-    echo "  → $REPO は既に存在します。最新を取得します..."
-    cd "$REPO" && git pull origin main 2>/dev/null || git pull origin master 2>/dev/null
-    cd "$BASE_DIR"
-  else
-    echo "  → $REPO をclone中..."
-    git clone "https://github.com/$GITHUB_USER/$REPO.git"
-  fi
+REPOS=()
+while true; do
+  read -p "リポジトリ名（空でスキップ）：" REPO_NAME
+  [ -z "$REPO_NAME" ] && break
+  REPOS+=("$REPO_NAME")
 done
 
-echo "✓ リポジトリ取得完了"
+if [ ${#REPOS[@]} -eq 0 ]; then
+  echo "  → リポジトリの取得をスキップしました"
+else
+  cd "$BASE_DIR"
+  for REPO in "${REPOS[@]}"; do
+    if [ -d "$REPO" ]; then
+      echo "  → $REPO は既に存在します。最新を取得します..."
+      cd "$REPO" && git pull origin main 2>/dev/null || git pull origin master 2>/dev/null
+      cd "$BASE_DIR"
+    else
+      echo "  → $REPO をclone中..."
+      git clone "https://github.com/$GITHUB_USER/$REPO.git"
+    fi
+  done
+  echo "✓ リポジトリ取得完了"
+fi
 
 # ------------------------------
-# 4. Claude Code 自動コミット設定
+# 5. Claude Code 自動コミット設定
 # ------------------------------
 echo ""
-echo "【Step 4】Claude Code 自動コミット設定"
+echo "【Step 5】Claude Code 自動コミット設定"
 
 CLAUDE_SCRIPTS="$HOME/.claude/scripts"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 
 mkdir -p "$CLAUDE_SCRIPTS"
 
-# auto_commit.shをコピー
-cp "$BASE_DIR/git-practice/環境構築/auto_commit.sh" "$CLAUDE_SCRIPTS/auto_commit.sh"
-echo "✓ auto_commit.sh を配置しました"
+# auto_commit.shをコピーしてパスを書き換え
+SCRIPT_SRC="$(dirname "$0")/auto_commit.sh"
+SCRIPT_DST="$CLAUDE_SCRIPTS/auto_commit.sh"
 
-# settings.jsonを作成（既存の場合は上書き確認）
+if [ -f "$SCRIPT_SRC" ]; then
+  # BASE_DIRを実際のパスに書き換えてコピー
+  sed "s|C:/Users/jo-sh/OneDrive/ドキュメント/AI開発|$BASE_DIR|g" "$SCRIPT_SRC" > "$SCRIPT_DST"
+  echo "✓ auto_commit.sh を配置しました（パス：$SCRIPT_DST）"
+else
+  echo "  ⚠ auto_commit.sh が見つかりません。手動でコピーしてください。"
+fi
+
+# settings.jsonを作成
 if [ -f "$CLAUDE_SETTINGS" ]; then
   echo ""
   read -p "  settings.jsonが既に存在します。上書きしますか？(y/n)：" OVERWRITE
-  if [ "$OVERWRITE" != "y" ]; then
-    echo "  → settings.jsonの更新をスキップしました"
-    echo "  ※ 手動で github-setup-guide.md の内容を参考に設定してください"
-  fi
 fi
 
 if [ ! -f "$CLAUDE_SETTINGS" ] || [ "$OVERWRITE" = "y" ]; then
-  cat > "$CLAUDE_SETTINGS" << 'EOF'
+  cat > "$CLAUDE_SETTINGS" << EOF
 {
   "language": "ja",
   "autoUpdatesChannel": "latest",
@@ -106,7 +130,7 @@ if [ ! -f "$CLAUDE_SETTINGS" ] || [ "$OVERWRITE" = "y" ]; then
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/auto_commit.sh"
+            "command": "bash $SCRIPT_DST"
           }
         ]
       }
